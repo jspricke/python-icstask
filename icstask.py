@@ -30,7 +30,7 @@ from vobject import iCalendar, readOne
 class IcsTask:
     """Represents a collection of Tasks"""
 
-    def __init__(self, data_location):
+    def __init__(self, data_location=expanduser('~/.task')):
         """Constructor
 
         data_location -- Path to the Taskwarrior data folder
