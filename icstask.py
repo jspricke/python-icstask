@@ -44,14 +44,14 @@ class IcsTask:
         """Reload Taskwarrior files if the mtime is newer"""
         update = False
 
-        for fname in ['pending.data', 'completed.data']:
-            mtime = getmtime(join(self._data_location, fname))
-            if mtime > self._mtime:
-                self._mtime = mtime
-                update = True
+        with self._lock:
+            for fname in ['pending.data', 'completed.data']:
+                mtime = getmtime(join(self._data_location, fname))
+                if mtime > self._mtime:
+                    self._mtime = mtime
+                    update = True
 
-        if update:
-            with self._lock:
+            if update:
                 self._tasks = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', f'rc.data.location={self._data_location}', 'export'], stdout=PIPE).stdout.decode('utf-8'))
 
     def _gen_uid(self, uid, json):
@@ -220,6 +220,7 @@ class IcsTask:
 
     def last_modified(self):
         """Last time this Taskwarrior files where parsed"""
+        self._update()
         return self._mtime
 
     def append_vobject(self, vtodo, project=None):
