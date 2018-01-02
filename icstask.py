@@ -84,7 +84,7 @@ class IcsTask:
             uid = uid.split('.')[0]
             tasks = [task for task in self._tasks if task['uuid'] == uid]
         elif project:
-            tasks = [task for task in self._tasks if task['project'] == project]
+            tasks = [task for task in self._tasks if task['project'] == basename(project)]
 
         for task in tasks:
             vtodo = todos.add('vtodo')
