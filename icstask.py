@@ -55,8 +55,9 @@ class IcsTask:
             if update:
                 self._tasks = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', f'rc.data.location={self._data_location}', 'export'], stdout=PIPE).stdout.decode('utf-8'))
 
-    def _gen_uid(self, uid, json):
-        return '{}.{}@{}'.format(uid, sha1(json.encode('utf-8')).hexdigest(), getfqdn())
+    def _gen_uid(self, task):
+        json = dumps({k: v for k, v in task.items() if k not in ('id', 'urgency')}, separators=(',', ':'), sort_keys=True)
+        return '{}.{}@{}'.format(task['uuid'], sha1(json.encode('utf-8')).hexdigest(), getfqdn())
 
     def _annotation_timestamp(self, uuid, description, dtstamp, delta):
         task = [task for task in self._tasks if task['uuid'] == uuid]
@@ -90,7 +91,7 @@ class IcsTask:
         for task in tasks:
             vtodo = todos.add('vtodo')
 
-            vtodo.add('uid').value = self._gen_uid(task['uuid'], dumps(task, separators=(',', ':'), sort_keys=True))
+            vtodo.add('uid').value = self._gen_uid(task)
             vtodo.add('dtstamp').value = parser.parse(task['entry'])
 
             if 'modified' in task:
@@ -196,8 +197,10 @@ class IcsTask:
         json = dumps(task, separators=(',', ':'), sort_keys=True)
         with self._lock:
             p = run(['task', 'rc.verbose=nothing', 'rc.recurrence.confirmation=no', f'rc.data.location={self._data_location}', 'import', '-'], input=json, encoding='utf-8', stdout=PIPE)
-            uid = findall('(?:add|mod)  ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) ', p.stdout)[0]
-            return self._gen_uid(uid, json)
+        uuid = findall('(?:add|mod)  ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) ', p.stdout)[0]
+        self._update()
+        task = next((task for task in self._tasks if task['uuid'] == uuid))
+        return self._gen_uid(task)
 
     def get_filesnames(self):
         """Returns a list of all Taskwarrior projects as virtual files in the data folder"""
@@ -214,7 +217,7 @@ class IcsTask:
         if project:
             tasks = [task for task in self._tasks if task['project'] == basename(project)]
 
-        return [self._gen_uid(task['uuid'], dumps(task, separators=(',', ':'), sort_keys=True)) for task in tasks]
+        return [self._gen_uid(task) for task in tasks]
 
     def get_meta(self):
         """Meta tags of the vObject collection"""
