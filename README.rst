@@ -27,3 +27,10 @@ Using python-setuptools
 
   $ python setup.py install
 
+Known limitations
+-----------------
+
+iCalendar -> Taskwarrior
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+* PERCENT-COMPLETE is not supported as there is no representation in Taskwarrior.
