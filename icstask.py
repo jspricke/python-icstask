@@ -158,8 +158,14 @@ class IcsTask:
         if hasattr(vtodo, 'last_modified'):
             task['modified'] = vtodo.last_modified.value.strftime('%Y%m%dT%H%M%SZ')
 
+        if hasattr(vtodo, 'dtstart'):
+            task['start'] = vtodo.dtstart.value.strftime('%Y%m%dT%H%M%SZ')
+
         if hasattr(vtodo, 'due'):
             task['due'] = vtodo.due.value.strftime('%Y%m%dT%H%M%SZ')
+
+        if hasattr(vtodo, 'completed'):
+            task['end'] = vtodo.completed.value.strftime('%Y%m%dT%H%M%SZ')
 
         task['description'] = vtodo.summary.value
 
@@ -181,18 +187,18 @@ class IcsTask:
         if hasattr(vtodo, 'status'):
             if vtodo.status.value == 'IN-PROCESS':
                 task['status'] = 'pending'
-                if hasattr(vtodo, 'dtstart'):
-                    task['start'] = vtodo.dtstart.value.strftime('%Y%m%dT%H%M%SZ')
-                elif hasattr(vtodo, 'dtstamp'):
+                if 'start' not in task:
                     task['start'] = vtodo.dtstamp.value.strftime('%Y%m%dT%H%M%SZ')
             elif vtodo.status.value == 'NEEDS-ACTION':
                 task['status'] = 'pending'
             elif vtodo.status.value == 'COMPLETED':
                 task['status'] = 'completed'
-                if hasattr(vtodo, 'completed'):
-                    task['end'] = vtodo.completed.value.strftime('%Y%m%dT%H%M%SZ')
+                if 'end' not in task:
+                    task['end'] = vtodo.dtstamp.value.strftime('%Y%m%dT%H%M%SZ')
             elif vtodo.status.value == 'CANCELLED':
                 task['status'] = 'deleted'
+                if 'end' not in task:
+                    task['end'] = vtodo.dtstamp.value.strftime('%Y%m%dT%H%M%SZ')
 
         json = dumps(task, separators=(',', ':'), sort_keys=True)
         with self._lock:
