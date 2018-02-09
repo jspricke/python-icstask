@@ -56,8 +56,7 @@ class IcsTask:
                 self._tasks = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', f'rc.data.location={self._data_location}', 'export'], stdout=PIPE).stdout.decode('utf-8'))
 
     def _gen_uid(self, task):
-        json = dumps({k: v for k, v in task.items() if k not in ('id', 'urgency')}, separators=(',', ':'), sort_keys=True)
-        return '{}.{}@{}'.format(task['uuid'], sha1(json.encode('utf-8')).hexdigest(), getfqdn())
+        return '{}@{}'.format(task['uuid'], getfqdn())
 
     def _annotation_timestamp(self, uuid, description, dtstamp, delta):
         task = [task for task in self._tasks if task['uuid'] == uuid]
@@ -83,7 +82,7 @@ class IcsTask:
 
         tasks = self._tasks
         if uid:
-            uid = uid.split('.')[0]
+            uid = uid.split('@')[0]
             tasks = [task for task in self._tasks if task['uuid'] == uid]
         elif project:
             tasks = [task for task in self._tasks if task['project'] == basename(project)]
@@ -248,7 +247,7 @@ class IcsTask:
         uuid -- the UID of the task
         project -- not used
         """
-        uuid = uuid.split('.')[0]
+        uuid = uuid.split('@')[0]
         with self._lock:
             run(['task', 'rc.verbose=nothing', f'rc.data.location={self._data_location}', 'rc.confirmation=no', uuid, 'delete'])
 
@@ -259,7 +258,7 @@ class IcsTask:
         project -- the project to add (see get_filesnames() as well)
         """
         self._update()
-        uuid = uuid.split('.')[0]
+        uuid = uuid.split('@')[0]
         if project:
             project = basename(project)
         return self.to_task(vtodo.vtodo, project, uuid)
