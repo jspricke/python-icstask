@@ -210,8 +210,8 @@ class IcsTask:
     def get_filesnames(self):
         """Returns a list of all Taskwarrior projects as virtual files in the data folder"""
         self._update()
-        projects = set([task['project'] for task in self._tasks])
-        return [join(self._data_location, p.split()[0]) for p in projects]
+        projects = set([task['project'] for task in self._tasks if 'project' in task])
+        return [join(self._data_location, p.split()[0]) for p in projects] + [self._data_location]
 
     def get_uids(self, project=None):
         """Return a list of UIDs
