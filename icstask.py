@@ -18,7 +18,6 @@
 
 from datetime import timedelta
 from dateutil import parser, rrule
-from hashlib import sha1
 from json import dumps, loads
 from os.path import basename, expanduser, getmtime, join
 from re import findall
