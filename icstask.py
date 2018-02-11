@@ -219,7 +219,7 @@ class IcsTask:
         """
         self._update()
         tasks = self._tasks
-        if project:
+        if project and project != self._data_location:
             tasks = [task for task in self._tasks if task['project'] == basename(project)]
 
         return [self._gen_uid(task) for task in tasks]
