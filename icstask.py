@@ -145,7 +145,7 @@ class IcsTask:
         """
         task = {}
 
-        if project:
+        if project and project != 'all_projects' and project != 'unaffiliated':
             task['project'] = project
 
         if uuid:
@@ -211,7 +211,8 @@ class IcsTask:
         """Returns a list of all Taskwarrior projects as virtual files in the data folder"""
         self._update()
         projects = set([task['project'] for task in self._tasks if 'project' in task])
-        return [join(self._data_location, p.split()[0]) for p in projects] + [self._data_location]
+        projects = list(projects) + ['all_projects', 'unaffiliated']
+        return [join(self._data_location, p.split()[0]) for p in projects]
 
     def get_uids(self, project=None):
         """Return a list of UIDs
@@ -219,8 +220,14 @@ class IcsTask:
         """
         self._update()
         tasks = self._tasks
-        if project and project != self._data_location:
-            tasks = [task for task in self._tasks if task['project'] == basename(project)]
+        if project:
+            project = basename(project)
+            if project == 'all_projects':
+                pass
+            elif project == 'unaffiliated':
+                tasks = [task for task in self._tasks if 'project' not in task]
+            else:
+                tasks = [task for task in self._tasks if 'project' in task and task['project'] == project]
 
         return [self._gen_uid(task) for task in tasks]
 
