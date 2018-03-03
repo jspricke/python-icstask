@@ -18,6 +18,7 @@
 
 from datetime import timedelta
 from dateutil import parser, rrule
+from dateutil.tz import tzutc
 from json import dumps, loads
 from os.path import basename, expanduser, getmtime, join
 from re import findall
@@ -65,7 +66,7 @@ class IcsTask:
                     return annotation['entry']
         # Hack because task import doesn't accept multiple annotations with the same timestamp
         dtstamp += timedelta(seconds=delta)
-        return dtstamp.strftime('%Y%m%dT%H%M%SZ')
+        return dtstamp.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
 
     def to_vobject(self, project=None, uid=None):
         """Return vObject object of Taskwarrior tasks
@@ -151,19 +152,19 @@ class IcsTask:
             task['uuid'] = uuid
 
         if hasattr(vtodo, 'dtstamp'):
-            task['entry'] = vtodo.dtstamp.value.strftime('%Y%m%dT%H%M%SZ')
+            task['entry'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
 
         if hasattr(vtodo, 'last_modified'):
-            task['modified'] = vtodo.last_modified.value.strftime('%Y%m%dT%H%M%SZ')
+            task['modified'] = vtodo.last_modified.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
 
         if hasattr(vtodo, 'dtstart'):
-            task['start'] = vtodo.dtstart.value.strftime('%Y%m%dT%H%M%SZ')
+            task['start'] = vtodo.dtstart.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
 
         if hasattr(vtodo, 'due'):
-            task['due'] = vtodo.due.value.strftime('%Y%m%dT%H%M%SZ')
+            task['due'] = vtodo.due.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
 
         if hasattr(vtodo, 'completed'):
-            task['end'] = vtodo.completed.value.strftime('%Y%m%dT%H%M%SZ')
+            task['end'] = vtodo.completed.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
 
         task['description'] = vtodo.summary.value
 
@@ -186,17 +187,17 @@ class IcsTask:
             if vtodo.status.value == 'IN-PROCESS':
                 task['status'] = 'pending'
                 if 'start' not in task:
-                    task['start'] = vtodo.dtstamp.value.strftime('%Y%m%dT%H%M%SZ')
+                    task['start'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
             elif vtodo.status.value == 'NEEDS-ACTION':
                 task['status'] = 'pending'
             elif vtodo.status.value == 'COMPLETED':
                 task['status'] = 'completed'
                 if 'end' not in task:
-                    task['end'] = vtodo.dtstamp.value.strftime('%Y%m%dT%H%M%SZ')
+                    task['end'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
             elif vtodo.status.value == 'CANCELLED':
                 task['status'] = 'deleted'
                 if 'end' not in task:
-                    task['end'] = vtodo.dtstamp.value.strftime('%Y%m%dT%H%M%SZ')
+                    task['end'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
 
         json = dumps(task, separators=(',', ':'), sort_keys=True)
         with self._lock:
