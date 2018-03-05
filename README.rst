@@ -34,3 +34,12 @@ iCalendar -> Taskwarrior
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 * PERCENT-COMPLETE is not supported as there is no representation in Taskwarrior.
+
+VEVENT entries
+~~~~~~~~~~~~~~
+
+This project only handles VEVENT entries. If you wan to import VEVENT entries try something like:
+
+::
+
+  $ sed -s 's/VEVENT/VTODO/g' ww.ics | ics2task
