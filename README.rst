@@ -42,4 +42,4 @@ This project only handles VEVENT entries. If you wan to import VEVENT entries tr
 
 ::
 
-  $ sed -s 's/VEVENT/VTODO/g' ww.ics | ics2task
+  $ sed -e 's/VEVENT/VTODO/' -e 's/DTSTART/DUE/' ww.ics | ics2task
