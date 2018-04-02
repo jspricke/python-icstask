@@ -17,7 +17,7 @@ setup(name='icstask',
           'Topic :: Software Development :: Libraries :: Python Modules',
       ],
 
-      install_requires=['vobject'],
+      install_requires=['tzlocal', 'vobject'],
       py_modules=['icstask'],
 
       entry_points={

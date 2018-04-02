@@ -16,14 +16,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Python library to convert between Taskwarrior and iCalendar"""
 
-from datetime import timedelta
-from dateutil import parser, rrule
-from dateutil.tz import tzutc
+from datetime import datetime, time, timedelta, timezone
+from dateutil import rrule
 from json import dumps, loads
 from os.path import basename, expanduser, getmtime, join
 from re import findall
 from socket import getfqdn
 from subprocess import PIPE, run
+from tzlocal import get_localzone
 from threading import Lock
 from vobject import iCalendar, readOne
 
@@ -31,12 +31,13 @@ from vobject import iCalendar, readOne
 class IcsTask:
     """Represents a collection of Tasks"""
 
-    def __init__(self, data_location=expanduser('~/.task')):
+    def __init__(self, data_location=expanduser('~/.task'), localtz=None):
         """Constructor
 
         data_location -- Path to the Taskwarrior data directory
         """
         self._data_location = data_location
+        self._localtz = localtz if localtz else get_localzone()
         self._lock = Lock()
         self._mtime = 0
         self._update()
@@ -66,7 +67,16 @@ class IcsTask:
                     return annotation['entry']
         # Hack because task import doesn't accept multiple annotations with the same timestamp
         dtstamp += timedelta(seconds=delta)
-        return dtstamp.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+        return self._tw_timestamp(dtstamp)
+
+    def _ics_datetime(self, string):
+        dt = datetime.strptime(string, '%Y%m%dT%H%M%SZ')
+        return dt.replace(tzinfo=timezone.utc).astimezone(self._localtz)
+
+    def _tw_timestamp(self, dt):
+        if not isinstance(dt, datetime):
+            dt = datetime.combine(dt, time.min)
+        return dt.astimezone(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
 
     def to_vobject(self, project=None, uid=None):
         """Return vObject object of Taskwarrior tasks
@@ -91,19 +101,23 @@ class IcsTask:
             vtodo = todos.add('vtodo')
 
             vtodo.add('uid').value = self._gen_uid(task)
-            vtodo.add('dtstamp').value = parser.parse(task['entry'])
+            vtodo.add('dtstamp').value = self._ics_datetime(task['entry'])
 
             if 'modified' in task:
-                vtodo.add('last-modified').value = parser.parse(task['modified'])
+                vtodo.add('last-modified').value = self._ics_datetime(task['modified'])
 
             if 'start' in task:
-                vtodo.add('dtstart').value = parser.parse(task['start'])
+                vtodo.add('dtstart').value = self._ics_datetime(task['start'])
 
             if 'due' in task:
-                vtodo.add('due').value = parser.parse(task['due'])
+                due = self._ics_datetime(task['due'])
+                if due.time() == time():
+                    vtodo.add('due').value = due.date()
+                else:
+                    vtodo.add('due').value = due
 
             if 'end' in task:
-                vtodo.add('completed').value = parser.parse(task['end'])
+                vtodo.add('completed').value = self._ics_datetime(task['end'])
 
             vtodo.add('summary').value = task['description']
 
@@ -152,19 +166,19 @@ class IcsTask:
             task['uuid'] = uuid
 
         if hasattr(vtodo, 'dtstamp'):
-            task['entry'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+            task['entry'] = self._tw_timestamp(vtodo.dtstamp.value)
 
         if hasattr(vtodo, 'last_modified'):
-            task['modified'] = vtodo.last_modified.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+            task['modified'] = self._tw_timestamp(vtodo.last_modified.value)
 
         if hasattr(vtodo, 'dtstart'):
-            task['start'] = vtodo.dtstart.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+            task['start'] = self._tw_timestamp(vtodo.dtstart.value)
 
         if hasattr(vtodo, 'due'):
-            task['due'] = vtodo.due.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+            task['due'] = self._tw_timestamp(vtodo.due.value)
 
         if hasattr(vtodo, 'completed'):
-            task['end'] = vtodo.completed.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+            task['end'] = self._tw_timestamp(vtodo.completed.value)
 
         task['description'] = vtodo.summary.value
 
@@ -187,17 +201,17 @@ class IcsTask:
             if vtodo.status.value == 'IN-PROCESS':
                 task['status'] = 'pending'
                 if 'start' not in task:
-                    task['start'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+                    task['start'] = self._tw_timestamp(vtodo.dtstamp.value)
             elif vtodo.status.value == 'NEEDS-ACTION':
                 task['status'] = 'pending'
             elif vtodo.status.value == 'COMPLETED':
                 task['status'] = 'completed'
                 if 'end' not in task:
-                    task['end'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+                    task['end'] = self._tw_timestamp(vtodo.dtstamp.value)
             elif vtodo.status.value == 'CANCELLED':
                 task['status'] = 'deleted'
                 if 'end' not in task:
-                    task['end'] = vtodo.dtstamp.value.astimezone(tzutc()).strftime('%Y%m%dT%H%M%SZ')
+                    task['end'] = self._tw_timestamp(vtodo.dtstamp.value)
 
         json = dumps(task, separators=(',', ':'), sort_keys=True)
         with self._lock:
