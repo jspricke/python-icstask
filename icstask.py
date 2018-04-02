@@ -108,7 +108,7 @@ class IcsTask:
             vtodo.add('summary').value = task['description']
 
             if 'tags' in task:
-                vtodo.add('categories').value = ','.join(task['tags'])
+                vtodo.add('categories').value = task['tags']
 
             if 'priority' in task:
                 if task['priority'] == 'H':
@@ -169,7 +169,7 @@ class IcsTask:
         task['description'] = vtodo.summary.value
 
         if hasattr(vtodo, 'categories'):
-            task['tags'] = vtodo.categories.value.split(',')
+            task['tags'] = vtodo.categories.value
 
         if hasattr(vtodo, 'priority'):
             priority = int(vtodo.priority.value)
