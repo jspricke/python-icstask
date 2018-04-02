@@ -34,7 +34,7 @@ class IcsTask:
     def __init__(self, data_location=expanduser('~/.task')):
         """Constructor
 
-        data_location -- Path to the Taskwarrior data folder
+        data_location -- Path to the Taskwarrior data directory
         """
         self._data_location = data_location
         self._lock = Lock()
@@ -208,7 +208,7 @@ class IcsTask:
         return self._gen_uid(task)
 
     def get_filesnames(self):
-        """Returns a list of all Taskwarrior projects as virtual files in the data folder"""
+        """Returns a list of all Taskwarrior projects as virtual files in the data directory"""
         self._update()
         projects = set([task['project'] for task in self._tasks if 'project' in task])
         projects = list(projects) + ['all_projects', 'unaffiliated']
@@ -277,12 +277,12 @@ def task2ics():
     from sys import stdout
 
     parser = ArgumentParser(description='Converter from Taskwarrior to iCalendar syntax.')
-    parser.add_argument('infile', nargs='?', help='Input Taskwarrior folder (default to ~/task)', default=expanduser('~/.task'))
+    parser.add_argument('indir', nargs='?', help='Input Taskwarrior directory (default to ~/.task)', default=expanduser('~/.task'))
     parser.add_argument('outfile', nargs='?', type=FileType('w'), default=stdout,
                         help='Output iCalendar file (default: stdout)')
     args = parser.parse_args()
 
-    task = IcsTask(args.infile)
+    task = IcsTask(args.indir)
     args.outfile.write(task.to_vobject().serialize())
 
 
@@ -294,10 +294,10 @@ def ics2task():
     parser = ArgumentParser(description='Converter from iCalendar to Taskwarrior syntax.')
     parser.add_argument('infile', nargs='?', type=FileType('r'), default=stdin,
                         help='Input iCalendar file (default: stdin)')
-    parser.add_argument('outfile', nargs='?', help='Output Taskwarrior folder (default to ~/task)', default=expanduser('~/.task'))
+    parser.add_argument('outdir', nargs='?', help='Output Taskwarrior directory (default to ~/.task)', default=expanduser('~/.task'))
     args = parser.parse_args()
 
     vobject = readOne(args.infile.read())
-    task = IcsTask(args.outfile)
+    task = IcsTask(args.outdir)
     for todo in vobject.vtodo_list:
         task.to_task(todo)
