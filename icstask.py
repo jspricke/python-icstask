@@ -40,6 +40,7 @@ class IcsTask:
         self._localtz = localtz if localtz else get_localzone()
         self._lock = Lock()
         self._mtime = 0
+        self._tasks = {}
         self._update()
 
     def _update(self):
@@ -54,20 +55,15 @@ class IcsTask:
                     update = True
 
             if update:
-                self._tasks = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', f'rc.data.location={self._data_location}', 'export'], stdout=PIPE).stdout.decode('utf-8'))
+                tasklist = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', f'rc.data.location={self._data_location}', 'export'], stdout=PIPE).stdout.decode('utf-8'))
+                for task in tasklist:
+                    project = task['project'] if 'project' in task else 'unaffiliated'
+                    if project not in self._tasks:
+                        self._tasks[project] = {}
+                    self._tasks[project][task['uuid']] = task
 
-    def _gen_uid(self, task):
-        return '{}@{}'.format(task['uuid'], getfqdn())
-
-    def _annotation_timestamp(self, uuid, description, dtstamp, delta):
-        task = [task for task in self._tasks if task['uuid'] == uuid]
-        if len(task) == 1:
-            for annotation in task[0]['annotations']:
-                if annotation['description'] == description:
-                    return annotation['entry']
-        # Hack because task import doesn't accept multiple annotations with the same timestamp
-        dtstamp += timedelta(seconds=delta)
-        return self._tw_timestamp(dtstamp)
+    def _gen_uid(self, uuid):
+        return '{}@{}'.format(uuid, getfqdn())
 
     def _ics_datetime(self, string):
         dt = datetime.strptime(string, '%Y%m%dT%H%M%SZ')
@@ -88,68 +84,76 @@ class IcsTask:
         uid -- the UID of the task
         """
         self._update()
-        todos = iCalendar()
+        vtodos = iCalendar()
 
-        tasks = self._tasks
         if uid:
             uid = uid.split('@')[0]
-            tasks = [task for task in self._tasks if task['uuid'] == uid]
+            if not project:
+                for p in self._tasks:
+                    if uid in self._tasks[p]:
+                        project = p
+                        break
+            self._gen_vtodo(self._tasks[basename(project)][uid], vtodos.add('vtodo'))
         elif project:
-            tasks = [task for task in self._tasks if task['project'] == basename(project)]
+            for task in self._tasks[basename(project)].values():
+                self._gen_vtodo(task, vtodos.add('vtodo'))
+        else:
+            for project in self._tasks:
+                for task in self._tasks[project].values():
+                    self._gen_vtodo(task, vtodos.add('vtodo'))
 
-        for task in tasks:
-            vtodo = todos.add('vtodo')
+        return vtodos
 
-            vtodo.add('uid').value = self._gen_uid(task)
-            vtodo.add('dtstamp').value = self._ics_datetime(task['entry'])
+    def _gen_vtodo(self, task, vtodo):
+        vtodo.add('uid').value = self._gen_uid(task['uuid'])
+        vtodo.add('dtstamp').value = self._ics_datetime(task['entry'])
 
-            if 'modified' in task:
-                vtodo.add('last-modified').value = self._ics_datetime(task['modified'])
+        if 'modified' in task:
+            vtodo.add('last-modified').value = self._ics_datetime(task['modified'])
 
+        if 'start' in task:
+            vtodo.add('dtstart').value = self._ics_datetime(task['start'])
+
+        if 'due' in task:
+            due = self._ics_datetime(task['due'])
+            if due.time() == time():
+                vtodo.add('due').value = due.date()
+            else:
+                vtodo.add('due').value = due
+
+        if 'end' in task:
+            vtodo.add('completed').value = self._ics_datetime(task['end'])
+
+        vtodo.add('summary').value = task['description']
+
+        if 'tags' in task:
+            vtodo.add('categories').value = task['tags']
+
+        if 'priority' in task:
+            if task['priority'] == 'H':
+                vtodo.add('priority').value = '1'
+            elif task['priority'] == 'M':
+                vtodo.add('priority').value = '5'
+            elif task['priority'] == 'L':
+                vtodo.add('priority').value = '9'
+
+        if task['status'] == 'pending' or task['status'] == 'waiting':
             if 'start' in task:
-                vtodo.add('dtstart').value = self._ics_datetime(task['start'])
+                vtodo.add('status').value = 'IN-PROCESS'
+            else:
+                vtodo.add('status').value = 'NEEDS-ACTION'
+        elif task['status'] == 'completed':
+            vtodo.add('status').value = 'COMPLETED'
+        elif task['status'] == 'deleted':
+            vtodo.add('status').value = 'CANCELLED'
 
-            if 'due' in task:
-                due = self._ics_datetime(task['due'])
-                if due.time() == time():
-                    vtodo.add('due').value = due.date()
-                else:
-                    vtodo.add('due').value = due
+        if 'annotations' in task:
+            vtodo.add('description').value = '\n'.join([annotation['description'] for annotation in task['annotations']])
 
-            if 'end' in task:
-                vtodo.add('completed').value = self._ics_datetime(task['end'])
-
-            vtodo.add('summary').value = task['description']
-
-            if 'tags' in task:
-                vtodo.add('categories').value = task['tags']
-
-            if 'priority' in task:
-                if task['priority'] == 'H':
-                    vtodo.add('priority').value = '1'
-                elif task['priority'] == 'M':
-                    vtodo.add('priority').value = '5'
-                elif task['priority'] == 'L':
-                    vtodo.add('priority').value = '9'
-
-            if task['status'] == 'pending' or task['status'] == 'waiting':
-                if 'start' in task:
-                    vtodo.add('status').value = 'IN-PROCESS'
-                else:
-                    vtodo.add('status').value = 'NEEDS-ACTION'
-            elif task['status'] == 'completed':
-                vtodo.add('status').value = 'COMPLETED'
-            elif task['status'] == 'deleted':
-                vtodo.add('status').value = 'CANCELLED'
-
-            if 'annotations' in task:
-                vtodo.add('description').value = '\n'.join([annotation['description'] for annotation in task['annotations']])
-
-            if 'recur' in task and task['recur'] == '7days':
-                rset = rrule.rruleset()
-                rset.rrule(rrule.rrule(freq=rrule.WEEKLY))
-                vtodo.rruleset = rset
-        return todos
+        if 'recur' in task and task['recur'] == '7days':
+            rset = rrule.rruleset()
+            rset.rrule(rrule.rrule(freq=rrule.WEEKLY))
+            vtodo.rruleset = rset
 
     def to_task(self, vtodo, project=None, uuid=None):
         """Add or modify a task from vTodo to Taskwarrior
@@ -195,7 +199,16 @@ class IcsTask:
                 task['priority'] = 'L'
 
         if hasattr(vtodo, 'description'):
-            task['annotations'] = [{'entry': self._annotation_timestamp(uuid, comment, vtodo.dtstamp.value, delta), 'description': comment} for delta, comment in enumerate(vtodo.description.value.split('\n'))]
+            task['annotations'] = []
+            for delta, comment in enumerate(vtodo.description.value.split('\n')):
+                # Hack because Taskwarrior import doesn't accept multiple annotations with the same timestamp
+                stamp = self._tw_timestamp(vtodo.dtstamp.value + timedelta(seconds=delta))
+                if uuid in self._tasks.get(project, {}):
+                    for annotation in self._tasks[project][uuid]['annotations']:
+                        if annotation['description'] == comment:
+                            stamp = annotation['entry']
+                            break
+                task['annotations'].append({'entry': stamp, 'description': comment})
 
         if hasattr(vtodo, 'status'):
             if vtodo.status.value == 'IN-PROCESS':
@@ -218,14 +231,12 @@ class IcsTask:
             p = run(['task', 'rc.verbose=nothing', 'rc.recurrence.confirmation=no', f'rc.data.location={self._data_location}', 'import', '-'], input=json, encoding='utf-8', stdout=PIPE)
         uuid = findall('(?:add|mod)  ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) ', p.stdout)[0]
         self._update()
-        task = next((task for task in self._tasks if task['uuid'] == uuid))
-        return self._gen_uid(task)
+        return self._gen_uid(uuid)
 
     def get_filesnames(self):
         """Returns a list of all Taskwarrior projects as virtual files in the data directory"""
         self._update()
-        projects = set([task['project'] for task in self._tasks if 'project' in task])
-        projects = list(projects) + ['all_projects', 'unaffiliated']
+        projects = list(self._tasks.keys()) + ['all_projects', 'unaffiliated']
         return [join(self._data_location, p.split()[0]) for p in projects]
 
     def get_uids(self, project=None):
@@ -233,17 +244,11 @@ class IcsTask:
         project -- the Project to filter for
         """
         self._update()
-        tasks = self._tasks
-        if project:
-            project = basename(project)
-            if project == 'all_projects':
-                pass
-            elif project == 'unaffiliated':
-                tasks = [task for task in self._tasks if 'project' not in task]
-            else:
-                tasks = [task for task in self._tasks if 'project' in task and task['project'] == project]
 
-        return [self._gen_uid(task) for task in tasks]
+        if not project or project.endswith('all_projects'):
+            return [self._gen_uid(task['uuid']) for project in self._tasks for task in self._tasks[project].values()]
+
+        return [self._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
 
     def get_meta(self):
         """Meta tags of the vObject collection"""
