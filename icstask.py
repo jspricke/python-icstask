@@ -74,6 +74,20 @@ class IcsTask:
             dt = datetime.combine(dt, time.min)
         return dt.astimezone(timezone.utc).strftime('%Y%m%dT%H%M%SZ')
 
+    def to_vobject_etag(self, project, uid):
+        """Return iCal object and etag of one Taskwarrior entry
+
+        project -- the Taskwarrior project
+        uid -- the UID of the task
+        """
+        self._update()
+
+        vtodos = iCalendar()
+        project = basename(project)
+        uid = uid.split('@')[0]
+        self._gen_vtodo(self._tasks[project][uid], vtodos.add('vtodo'))
+        return vtodos, '"%s"' % self._tasks[project][uid]['modified']
+
     def to_vobject(self, project=None, uid=None):
         """Return vObject object of Taskwarrior tasks
         If filename and UID are specified, the vObject only contains that task.
