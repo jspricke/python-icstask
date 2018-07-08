@@ -38,7 +38,7 @@ iCalendar -> Taskwarrior
 VEVENT entries
 ~~~~~~~~~~~~~~
 
-This project only handles VEVENT entries. If you wan to import VEVENT entries try something like:
+This project only handles VTODO entries. If you wan to import VEVENT entries try something like:
 
 ::
 
