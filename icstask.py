@@ -217,7 +217,7 @@ class IcsTask:
             for delta, comment in enumerate(vtodo.description.value.split('\n')):
                 # Hack because Taskwarrior import doesn't accept multiple annotations with the same timestamp
                 stamp = self._tw_timestamp(vtodo.dtstamp.value + timedelta(seconds=delta))
-                if uuid in self._tasks.get(project, {}):
+                if uuid in self._tasks.get(project, {}) and 'annotations' in self._tasks[project][uuid]:
                     for annotation in self._tasks[project][uuid]['annotations']:
                         if annotation['description'] == comment:
                             stamp = annotation['entry']
