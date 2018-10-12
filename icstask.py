@@ -55,6 +55,7 @@ class IcsTask:
                     update = True
 
             if update:
+                self._tasks = {}
                 tasklist = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', f'rc.data.location={self._data_location}', 'export'], stdout=PIPE).stdout.decode('utf-8'))
                 for task in tasklist:
                     project = task['project'] if 'project' in task else 'unaffiliated'
