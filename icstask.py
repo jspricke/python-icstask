@@ -81,13 +81,28 @@ class IcsTask:
         project -- the Taskwarrior project
         uid -- the UID of the task
         """
+        return self.to_vobjects(project, [uid])[0][1:3]
+
+    def to_vobjects(self, filename, uids=None):
+        """Return iCal objects and etags of all Taskwarrior entries in uids
+
+        filename -- the Taskwarrior project
+        uids -- the UIDs of the Taskwarrior tasks (all if None)
+        """
         self._update()
 
-        vtodos = iCalendar()
-        project = basename(project)
-        uid = uid.split('@')[0]
-        self._gen_vtodo(self._tasks[project][uid], vtodos.add('vtodo'))
-        return vtodos, '"%s"' % self._tasks[project][uid]['modified']
+        if not uids:
+            uids = self.get_uids(filename)
+
+        project = basename(filename)
+        items = []
+
+        for uid in uids:
+            vtodos = iCalendar()
+            uuid = uid.split('@')[0]
+            self._gen_vtodo(self._tasks[project][uuid], vtodos.add('vtodo'))
+            items.append((uid, vtodos, '"%s"' % self._tasks[project][uuid]['modified']))
+        return items
 
     def to_vobject(self, project=None, uid=None):
         """Return vObject object of Taskwarrior tasks
@@ -303,6 +318,15 @@ class IcsTask:
         if project:
             project = basename(project)
         return self.to_task(vtodo.vtodo, project, uuid)
+
+    def move_vobject(self, uuid, from_project, to_project):
+        """Update the project of the task with the UID uuid"""
+        if to_project not in self.get_filesnames():
+            return
+
+        uuid = uuid.split('@')[0]
+        with self._lock:
+            run(['task', 'rc.verbose=nothing', f'rc.data.location={self._data_location}', 'rc.confirmation=no', uuid, 'modify', f'project:{basename(to_project)}'])
 
 
 def task2ics():
