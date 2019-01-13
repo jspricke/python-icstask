@@ -31,13 +31,14 @@ from vobject import iCalendar, readOne
 class IcsTask:
     """Represents a collection of Tasks"""
 
-    def __init__(self, data_location=expanduser('~/.task'), localtz=None):
+    def __init__(self, data_location=expanduser('~/.task'), localtz=None, task_projects=[]):
         """Constructor
 
         data_location -- Path to the Taskwarrior data directory
         """
         self._data_location = data_location
         self._localtz = localtz if localtz else get_localzone()
+        self._task_projects = task_projects
         self._lock = Lock()
         self._mtime = 0
         self._tasks = {}
@@ -266,7 +267,7 @@ class IcsTask:
     def get_filesnames(self):
         """Return a list of all Taskwarrior projects as virtual files in the data directory"""
         self._update()
-        projects = list(self._tasks.keys()) + ['all_projects', 'unaffiliated']
+        projects = set(list(self._tasks.keys()) + self._task_projects + ['all_projects', 'unaffiliated'])
         return [join(self._data_location, p.split()[0]) for p in projects]
 
     def get_uids(self, project=None):
