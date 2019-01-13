@@ -278,6 +278,9 @@ class IcsTask:
         if not project or project.endswith('all_projects'):
             return [self._gen_uid(task['uuid']) for project in self._tasks for task in self._tasks[project].values()]
 
+        if basename(project) not in self._tasks:
+            return []
+
         return [self._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
 
     def get_meta(self):
