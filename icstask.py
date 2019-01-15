@@ -19,7 +19,7 @@
 from datetime import datetime, time, timedelta, timezone
 from dateutil import rrule
 from json import dumps, loads
-from os.path import basename, expanduser, getmtime, join
+from os.path import basename, expanduser, getmtime, join, exists
 from re import findall
 from socket import getfqdn
 from subprocess import PIPE, run
@@ -49,10 +49,12 @@ class IcsTask:
 
         with self._lock:
             for fname in ['pending.data', 'completed.data']:
-                mtime = getmtime(join(self._data_location, fname))
-                if mtime > self._mtime:
-                    self._mtime = mtime
-                    update = True
+                data_file = join(self._data_location, fname)
+                if exists(data_file):
+                    mtime = getmtime(data_file)
+                    if mtime > self._mtime:
+                        self._mtime = mtime
+                        update = True
 
             if update:
                 self._tasks = {}
