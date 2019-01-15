@@ -57,7 +57,7 @@ class IcsTask:
 
             if update:
                 self._tasks = {}
-                tasklist = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', f'rc.data.location={self._data_location}', 'export'], stdout=PIPE).stdout.decode('utf-8'))
+                tasklist = loads(run(['task', 'rc.verbose=nothing', 'rc.hooks=off', 'rc.data.location={self._data_location}'.format(**locals()), 'export'], stdout=PIPE).stdout.decode('utf-8'))
                 for task in tasklist:
                     project = task['project'] if 'project' in task else 'unaffiliated'
                     if project not in self._tasks:
@@ -259,7 +259,7 @@ class IcsTask:
 
         json = dumps(task, separators=(',', ':'), sort_keys=True)
         with self._lock:
-            p = run(['task', 'rc.verbose=nothing', 'rc.recurrence.confirmation=no', f'rc.data.location={self._data_location}', 'import', '-'], input=json, encoding='utf-8', stdout=PIPE)
+            p = run(['task', 'rc.verbose=nothing', 'rc.recurrence.confirmation=no', 'rc.data.location={self._data_location}'.format(**locals()), 'import', '-'], input=json, encoding='utf-8', stdout=PIPE)
         uuid = findall('(?:add|mod)  ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) ', p.stdout)[0]
         self._update()
         return self._gen_uid(uuid)
@@ -309,7 +309,7 @@ class IcsTask:
         """
         uuid = uuid.split('@')[0]
         with self._lock:
-            run(['task', 'rc.verbose=nothing', f'rc.data.location={self._data_location}', 'rc.confirmation=no', uuid, 'delete'])
+            run(['task', 'rc.verbose=nothing', 'rc.data.location={self._data_location}'.format(**locals()), 'rc.confirmation=no', uuid, 'delete'])
 
     def replace_vobject(self, uuid, vtodo, project=None):
         """Update the task with the UID from the vObject
@@ -330,7 +330,7 @@ class IcsTask:
 
         uuid = uuid.split('@')[0]
         with self._lock:
-            run(['task', 'rc.verbose=nothing', f'rc.data.location={self._data_location}', 'rc.confirmation=no', uuid, 'modify', f'project:{basename(to_project)}'])
+            run(['task', 'rc.verbose=nothing', 'rc.data.location={self._data_location}'.format(**locals()), 'rc.confirmation=no', uuid, 'modify', 'project:{}'.format(basename(to_project))])
 
 
 def task2ics():
