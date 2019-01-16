@@ -9,7 +9,7 @@ Installation
 You need to have the Taskwarrior command line tool installed.
 For Debian/Ubuntu use::
 
-  $ sudo apt-get install task
+  $ sudo apt-get install taskwarrior
 
 Using pip
 ~~~~~~~~~
