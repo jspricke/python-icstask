@@ -31,7 +31,7 @@ from vobject import iCalendar, readOne
 class IcsTask:
     """Represents a collection of Tasks"""
 
-    def __init__(self, data_location=expanduser('~/.task'), localtz=None, task_projects=[]):
+    def __init__(self, data_location=expanduser('~/.task'), localtz=None, task_projects=[], start_task=True):
         """Constructor
 
         data_location -- Path to the Taskwarrior data directory
@@ -39,6 +39,7 @@ class IcsTask:
         self._data_location = data_location
         self._localtz = localtz if localtz else get_localzone()
         self._task_projects = task_projects
+        self._start_task = start_task
         self._lock = Lock()
         self._mtime = 0
         self._tasks = {}
@@ -246,7 +247,7 @@ class IcsTask:
         if hasattr(vtodo, 'status'):
             if vtodo.status.value == 'IN-PROCESS':
                 task['status'] = 'pending'
-                if 'start' not in task:
+                if self._start_task and 'start' not in task:
                     task['start'] = self._tw_timestamp(vtodo.dtstamp.value)
             elif vtodo.status.value == 'NEEDS-ACTION':
                 task['status'] = 'pending'
