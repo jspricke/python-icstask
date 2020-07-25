@@ -260,7 +260,7 @@ class IcsTask:
                 if 'end' not in task:
                     task['end'] = self._tw_timestamp(vtodo.dtstamp.value)
 
-        json = dumps(task, separators=(',', ':'), sort_keys=True)
+        json = dumps(task, separators=(',', ':'), ensure_ascii=False, sort_keys=True)
         with self._lock:
             p = run(['task', 'rc.verbose=nothing', 'rc.recurrence.confirmation=no', 'rc.data.location={self._data_location}'.format(**locals()), 'import', '-'], input=json, encoding='utf-8', stdout=PIPE)
         uuid = findall('(?:add|mod)  ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) ', p.stdout)[0]
