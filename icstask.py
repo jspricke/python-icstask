@@ -120,6 +120,7 @@ class IcsTask:
         self._update()
         vtodos = iCalendar()
 
+        tasks = []
         if uid:
             uid = uid.split('@')[0]
             if not project:
@@ -127,14 +128,18 @@ class IcsTask:
                     if uid in self._tasks[p]:
                         project = p
                         break
-            self._gen_vtodo(self._tasks[basename(project)][uid], vtodos.add('vtodo'))
+            tasks.append(self._tasks[basename(project)][uid])
         elif project:
-            for task in self._tasks[basename(project)].values():
-                self._gen_vtodo(task, vtodos.add('vtodo'))
+            tasks = self._tasks[basename(project)].values()
         else:
             for project in self._tasks:
-                for task in self._tasks[project].values():
-                    self._gen_vtodo(task, vtodos.add('vtodo'))
+                tasks.extend(self._tasks[project].values())
+
+        for task in tasks:
+            # skip recurring instances in favor of the single parent task
+            if task.get('recur') and task.get('parent'):
+                continue
+            self._gen_vtodo(task, vtodos.add('vtodo'))
 
         return vtodos
 
