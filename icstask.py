@@ -143,6 +143,11 @@ class IcsTask:
 
         return vtodos
 
+    def _create_rset(self, task, freq, postfix):
+        rset = rrule.rruleset()
+        rset.rrule(rrule.rrule(freq=freq, interval=int(task['recur'][:-len(postfix)])))
+        return rset
+
     def _gen_vtodo(self, task, vtodo):
         vtodo.add('uid').value = self._gen_uid(task['uuid'])
         vtodo.add('dtstamp').value = self._ics_datetime(task['entry'])
@@ -189,10 +194,33 @@ class IcsTask:
         if 'annotations' in task:
             vtodo.add('description').value = '\n'.join([annotation['description'] for annotation in task['annotations']])
 
-        if 'recur' in task and task['recur'] == '7days':
-            rset = rrule.rruleset()
-            rset.rrule(rrule.rrule(freq=rrule.WEEKLY))
-            vtodo.rruleset = rset
+        if 'recur' in task:
+            if task['recur'] == 'weekly':
+                rset = rrule.rruleset()
+                rset.rrule(rrule.rrule(freq=rrule.WEEKLY))
+                vtodo.rruleset = rset
+            elif task['recur'].endswith('days'):
+                vtodo.rruleset = self._create_rset(task, rrule.DAILY, 'days')
+            elif task['recur'].endswith('w'):
+                vtodo.rruleset = self._create_rset(task, rrule.WEEKLY, 'w')
+            elif task['recur'].endswith('week'):
+                vtodo.rruleset = self._create_rset(task, rrule.WEEKLY, 'week')
+            elif task['recur'].endswith('weeks'):
+                vtodo.rruleset = self._create_rset(task, rrule.WEEKLY, 'weeks')
+            elif task['recur'].endswith('mo'):
+                vtodo.rruleset = self._create_rset(task, rrule.MONTHLY, 'mo')
+            elif task['recur'].endswith('month'):
+                vtodo.rruleset = self._create_rset(task, rrule.MONTHLY, 'month')
+            elif task['recur'].endswith('months'):
+                vtodo.rruleset = self._create_rset(task, rrule.MONTHLY, 'months')
+            elif task['recur'].endswith('y'):
+                vtodo.rruleset = self._create_rset(task, rrule.YEARLY, 'y')
+            elif task['recur'].endswith('year'):
+                vtodo.rruleset = self._create_rset(task, rrule.YEARLY, 'year')
+            elif task['recur'].endswith('years'):
+                vtodo.rruleset = self._create_rset(task, rrule.YEARLY, 'years')
+            else:
+                raise ValueError(f'Unsupported recurrence string {task["recur"]}')
 
     def to_task(self, vtodo, project=None, uuid=None):
         """Add or modify a task from vTodo to Taskwarrior
