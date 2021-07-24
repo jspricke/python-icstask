@@ -23,9 +23,9 @@ from os.path import basename, expanduser, getmtime, join, exists
 from re import findall
 from socket import getfqdn
 from subprocess import PIPE, run
-from tzlocal import get_localzone
 from threading import Lock
 from vobject import iCalendar, readOne
+from zoneinfo import ZoneInfo
 
 
 class IcsTask:
@@ -37,7 +37,7 @@ class IcsTask:
         data_location -- Path to the Taskwarrior data directory
         """
         self._data_location = data_location
-        self._localtz = localtz if localtz else get_localzone()
+        self._localtz = localtz if localtz else ZoneInfo('localtime')
         self._task_projects = task_projects
         self._start_task = start_task
         self._lock = Lock()
