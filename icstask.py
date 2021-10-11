@@ -23,10 +23,12 @@ from re import findall
 from socket import getfqdn
 from subprocess import PIPE, run
 from threading import Lock
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from zoneinfo import ZoneInfo
 
 from dateutil import rrule
-from vobject import iCalendar, readOne
+from vobject import iCalendar
+from vobject.base import Component, readOne
 
 
 class IcsTask:
@@ -34,11 +36,11 @@ class IcsTask:
 
     def __init__(
         self,
-        data_location=expanduser("~/.task"),
-        localtz=None,
-        task_projects=[],
-        start_task=True,
-    ):
+        data_location: str = expanduser("~/.task"),
+        localtz: Optional[ZoneInfo] = None,
+        task_projects: List[str] = [],
+        start_task: bool = True,
+    ) -> None:
         """Constructor.
 
         data_location -- Path to the Taskwarrior data directory
@@ -48,11 +50,11 @@ class IcsTask:
         self._task_projects = task_projects
         self._start_task = start_task
         self._lock = Lock()
-        self._mtime = 0
-        self._tasks = {}
+        self._mtime = 0.0
+        self._tasks: Dict[str, Dict[str, Any]] = {}
         self._update()
 
-    def _update(self):
+    def _update(self) -> None:
         """Reload Taskwarrior files if the mtime is newer."""
         update = False
 
@@ -85,19 +87,19 @@ class IcsTask:
                         self._tasks[project] = {}
                     self._tasks[project][task["uuid"]] = task
 
-    def _gen_uid(self, uuid):
+    def _gen_uid(self, uuid: str) -> str:
         return "{}@{}".format(uuid, getfqdn())
 
-    def _ics_datetime(self, string):
+    def _ics_datetime(self, string: str) -> datetime:
         dt = datetime.strptime(string, "%Y%m%dT%H%M%SZ")
         return dt.replace(tzinfo=timezone.utc).astimezone(self._localtz)
 
-    def _tw_timestamp(self, dt):
+    def _tw_timestamp(self, dt: datetime) -> str:
         if not isinstance(dt, datetime):
             dt = datetime.combine(dt, time.min)
         return dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
-    def to_vobject_etag(self, project, uid):
+    def to_vobject_etag(self, project: str, uid: str) -> Tuple[Component, str]:
         """Return iCal object and etag of one Taskwarrior entry.
 
         project -- the Taskwarrior project
@@ -105,7 +107,9 @@ class IcsTask:
         """
         return self.to_vobjects(project, [uid])[0][1:3]
 
-    def to_vobjects(self, filename, uids=None):
+    def to_vobjects(
+        self, filename: str, uids: Iterable[str] = []
+    ) -> List[Tuple[str, Component, str]]:
         """Return iCal objects and etags of all Taskwarrior entries in uids.
 
         filename -- the Taskwarrior project
@@ -126,7 +130,7 @@ class IcsTask:
             items.append((uid, vtodos, '"%s"' % self._tasks[project][uuid]["modified"]))
         return items
 
-    def to_vobject(self, project=None, uid=None):
+    def to_vobject(self, project: str = "", uid: str = "") -> Component:
         """Return vObject object of Taskwarrior tasks.
 
         If filename and UID are specified, the vObject only contains that task.
@@ -150,7 +154,7 @@ class IcsTask:
                         break
             tasks.append(self._tasks[basename(project)][uid])
         elif project:
-            tasks = self._tasks[basename(project)].values()
+            tasks = list(self._tasks[basename(project)].values())
         else:
             for project in self._tasks:
                 tasks.extend(self._tasks[project].values())
@@ -163,12 +167,14 @@ class IcsTask:
 
         return vtodos
 
-    def _create_rset(self, task, freq, postfix):
+    def _create_rset(
+        self, task: Dict[str, Any], freq: int, postfix: str
+    ) -> rrule.rruleset:
         rset = rrule.rruleset()
         rset.rrule(rrule.rrule(freq=freq, interval=int(task["recur"][: -len(postfix)])))
         return rset
 
-    def _gen_vtodo(self, task, vtodo):
+    def _gen_vtodo(self, task: Dict[str, Any], vtodo: Component) -> None:
         vtodo.add("uid").value = self._gen_uid(task["uuid"])
         vtodo.add("dtstamp").value = self._ics_datetime(task["entry"])
 
@@ -244,14 +250,14 @@ class IcsTask:
             else:
                 raise ValueError(f'Unsupported recurrence string {task["recur"]}')
 
-    def to_task(self, vtodo, project=None, uuid=None):
+    def to_task(self, vtodo: Component, project: str = "", uuid: str = "") -> str:
         """Add or modify a task from vTodo to Taskwarrior.
 
         vtodo -- the vTodo to add
         project -- the project to add (see get_filesnames() as well)
         uuid -- the UID of the task in Taskwarrior
         """
-        task = {}
+        task: Dict[str, Any] = {}
 
         if project and project != "all_projects" and project != "unaffiliated":
             task["project"] = project
@@ -344,7 +350,7 @@ class IcsTask:
         self._update()
         return self._gen_uid(uuid)
 
-    def get_filesnames(self):
+    def get_filesnames(self) -> List[str]:
         """Return a list of all Taskwarrior projects as virtual files in the data directory."""
         self._update()
         projects = set(
@@ -354,7 +360,7 @@ class IcsTask:
         )
         return [join(self._data_location, p.split()[0]) for p in projects]
 
-    def get_uids(self, project=None):
+    def get_uids(self, project: str = "") -> List[str]:
         """Return a list of UIDs.
 
         project -- the Project to filter for
@@ -373,16 +379,16 @@ class IcsTask:
 
         return [self._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
 
-    def get_meta(self):
+    def get_meta(self) -> Dict[str, str]:
         """Meta tags of the vObject collection."""
         return {"tag": "VCALENDAR", "C:supported-calendar-component-set": "VTODO"}
 
-    def last_modified(self):
+    def last_modified(self) -> float:
         """Last time this Taskwarrior files where parsed."""
         self._update()
         return self._mtime
 
-    def append_vobject(self, vtodo, project=None):
+    def append_vobject(self, vtodo: Component, project: str = "") -> str:
         """Add a task from vObject to Taskwarrior.
 
         vtodo -- the iCalendar to add
@@ -392,7 +398,7 @@ class IcsTask:
             project = basename(project)
         return self.to_task(vtodo.vtodo, project)
 
-    def remove(self, uuid, project=None):
+    def remove(self, uuid: str, project: str = "") -> None:
         """Remove a task from Taskwarrior.
 
         uuid -- the UID of the task
@@ -411,7 +417,7 @@ class IcsTask:
                 ]
             )
 
-    def replace_vobject(self, uuid, vtodo, project=None):
+    def replace_vobject(self, uuid: str, vtodo: Component, project: str = "") -> str:
         """Update the task with the UID from the vObject.
 
         uuid -- the UID of the task
@@ -424,7 +430,7 @@ class IcsTask:
             project = basename(project)
         return self.to_task(vtodo.vtodo, project, uuid)
 
-    def move_vobject(self, uuid, from_project, to_project):
+    def move_vobject(self, uuid: str, from_project: str, to_project: str) -> None:
         """Update the project of the task with the UID uuid."""
         if to_project not in self.get_filesnames():
             return
@@ -444,7 +450,7 @@ class IcsTask:
             )
 
 
-def task2ics():
+def task2ics() -> None:
     """Command line tool to convert from Taskwarrior to iCalendar."""
     from argparse import ArgumentParser, FileType
     from sys import stdout
@@ -471,7 +477,7 @@ def task2ics():
     args.outfile.write(task.to_vobject().serialize())
 
 
-def ics2task():
+def ics2task() -> None:
     """Command line tool to convert from iCalendar to Taskwarrior."""
     from argparse import ArgumentParser, FileType
     from sys import stdin
