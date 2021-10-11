@@ -167,11 +167,9 @@ class IcsTask:
 
         return vtodos
 
-    def _create_rset(
-        self, task: Dict[str, Any], freq: int, postfix: str
-    ) -> rrule.rruleset:
+    def _create_rset(self, recur: str, freq: int, postfix: str) -> rrule.rruleset:
         rset = rrule.rruleset()
-        rset.rrule(rrule.rrule(freq=freq, interval=int(task["recur"][: -len(postfix)])))
+        rset.rrule(rrule.rrule(freq=freq, interval=int(recur[: -len(postfix)])))
         return rset
 
     def _gen_vtodo(self, task: Dict[str, Any], vtodo: Component) -> None:
@@ -228,25 +226,29 @@ class IcsTask:
                 rset.rrule(rrule.rrule(freq=rrule.WEEKLY))
                 vtodo.rruleset = rset
             elif task["recur"].endswith("days"):
-                vtodo.rruleset = self._create_rset(task, rrule.DAILY, "days")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.DAILY, "days")
             elif task["recur"].endswith("w"):
-                vtodo.rruleset = self._create_rset(task, rrule.WEEKLY, "w")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.WEEKLY, "w")
             elif task["recur"].endswith("week"):
-                vtodo.rruleset = self._create_rset(task, rrule.WEEKLY, "week")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.WEEKLY, "week")
             elif task["recur"].endswith("weeks"):
-                vtodo.rruleset = self._create_rset(task, rrule.WEEKLY, "weeks")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.WEEKLY, "weeks")
             elif task["recur"].endswith("mo"):
-                vtodo.rruleset = self._create_rset(task, rrule.MONTHLY, "mo")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.MONTHLY, "mo")
             elif task["recur"].endswith("month"):
-                vtodo.rruleset = self._create_rset(task, rrule.MONTHLY, "month")
+                vtodo.rruleset = self._create_rset(
+                    task["recur"], rrule.MONTHLY, "month"
+                )
             elif task["recur"].endswith("months"):
-                vtodo.rruleset = self._create_rset(task, rrule.MONTHLY, "months")
+                vtodo.rruleset = self._create_rset(
+                    task["recur"], rrule.MONTHLY, "months"
+                )
             elif task["recur"].endswith("y"):
-                vtodo.rruleset = self._create_rset(task, rrule.YEARLY, "y")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.YEARLY, "y")
             elif task["recur"].endswith("year"):
-                vtodo.rruleset = self._create_rset(task, rrule.YEARLY, "year")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.YEARLY, "year")
             elif task["recur"].endswith("years"):
-                vtodo.rruleset = self._create_rset(task, rrule.YEARLY, "years")
+                vtodo.rruleset = self._create_rset(task["recur"], rrule.YEARLY, "years")
             else:
                 raise ValueError(f'Unsupported recurrence string {task["recur"]}')
 
