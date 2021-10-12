@@ -121,13 +121,24 @@ class IcsTask:
             uids = self.get_uids(filename)
 
         project = basename(filename)
+        if project == "all_projects":
+            tasks = {
+                uuid: self._tasks[pro][uuid]
+                for pro in self._tasks
+                for uuid in self._tasks[pro]
+            }
+        else:
+            if project not in self._tasks:
+                return []
+            tasks = self._tasks[project]
+
         items = []
 
         for uid in uids:
             vtodos = iCalendar()
             uuid = uid.split("@")[0]
-            self._gen_vtodo(self._tasks[project][uuid], vtodos.add("vtodo"))
-            items.append((uid, vtodos, '"%s"' % self._tasks[project][uuid]["modified"]))
+            self._gen_vtodo(tasks[uuid], vtodos.add("vtodo"))
+            items.append((uid, vtodos, '"%s"' % tasks[uuid]["modified"]))
         return items
 
     def to_vobject(self, project: str = "", uid: str = "") -> Component:
