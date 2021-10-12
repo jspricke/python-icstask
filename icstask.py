@@ -18,10 +18,10 @@
 
 from datetime import datetime, time, timedelta, timezone
 from json import dumps, loads
-from os.path import basename, exists, expanduser, getmtime, join
+from os.path import basename, exists, getmtime, join
 from re import findall
 from socket import getfqdn
-from subprocess import PIPE, run
+from subprocess import check_call, check_output
 from threading import Lock
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 from zoneinfo import ZoneInfo
@@ -36,7 +36,7 @@ class IcsTask:
 
     def __init__(
         self,
-        data_location: str = expanduser("~/.task"),
+        data_location: str = "",
         localtz: Optional[ZoneInfo] = None,
         task_projects: List[str] = [],
         start_task: bool = True,
@@ -45,7 +45,11 @@ class IcsTask:
 
         data_location -- Path to the Taskwarrior data directory
         """
-        self._data_location = data_location
+        if not data_location:
+            out = check_output(["task", "rc.confirmation=no", "_show"], text=True)
+            self._data_location = findall("data.location=(.*)", out)[0]
+        else:
+            self._data_location = data_location
         self._localtz = localtz if localtz else ZoneInfo("localtime")
         self._task_projects = task_projects
         self._start_task = start_task
@@ -69,18 +73,17 @@ class IcsTask:
 
             if update:
                 self._tasks = {}
-                tasklist = loads(
-                    run(
-                        [
-                            "task",
-                            "rc.verbose=nothing",
-                            "rc.hooks=off",
-                            "rc.data.location={self._data_location}".format(**locals()),
-                            "export",
-                        ],
-                        stdout=PIPE,
-                    ).stdout.decode("utf-8")
+                out = check_output(
+                    [
+                        "task",
+                        "rc.verbose=nothing",
+                        "rc.hooks=off",
+                        "rc.data.location={self._data_location}".format(**locals()),
+                        "export",
+                    ],
+                    text=True,
                 )
+                tasklist = loads(out)
                 for task in tasklist:
                     project = task["project"] if "project" in task else "unaffiliated"
                     if project not in self._tasks:
@@ -343,7 +346,7 @@ class IcsTask:
 
         json = dumps(task, separators=(",", ":"), ensure_ascii=False, sort_keys=True)
         with self._lock:
-            p = run(
+            out = check_output(
                 [
                     "task",
                     "rc.verbose=nothing",
@@ -353,12 +356,11 @@ class IcsTask:
                     "-",
                 ],
                 input=json,
-                encoding="utf-8",
-                stdout=PIPE,
+                text=True,
             )
         uuid = findall(
             "(?:add|mod)  ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}) ",
-            p.stdout,
+            out,
         )[0]
         self._update()
         return self._gen_uid(uuid)
@@ -419,7 +421,7 @@ class IcsTask:
         """
         uuid = uuid.split("@")[0]
         with self._lock:
-            run(
+            check_call(
                 [
                     "task",
                     "rc.verbose=nothing",
@@ -450,7 +452,7 @@ class IcsTask:
 
         uuid = uuid.split("@")[0]
         with self._lock:
-            run(
+            check_call(
                 [
                     "task",
                     "rc.verbose=nothing",
@@ -474,8 +476,8 @@ def task2ics() -> None:
     parser.add_argument(
         "indir",
         nargs="?",
-        help="Input Taskwarrior directory (default to ~/.task)",
-        default=expanduser("~/.task"),
+        help="Input Taskwarrior directory (autodetect by default)",
+        default="",
     )
     parser.add_argument(
         "outfile",
@@ -508,8 +510,8 @@ def ics2task() -> None:
     parser.add_argument(
         "outdir",
         nargs="?",
-        help="Output Taskwarrior directory (default to ~/.task)",
-        default=expanduser("~/.task"),
+        help="Output Taskwarrior directory (autodetect by default)",
+        default="",
     )
     args = parser.parse_args()
 
