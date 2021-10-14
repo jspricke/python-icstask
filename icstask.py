@@ -23,7 +23,7 @@ from re import findall
 from socket import getfqdn
 from subprocess import check_call, check_output
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
 
 from dateutil import rrule
@@ -38,7 +38,7 @@ class IcsTask:
         self,
         data_location: str = "",
         localtz: Optional[ZoneInfo] = None,
-        task_projects: List[str] = [],
+        task_projects: list[str] = [],
         start_task: bool = True,
     ) -> None:
         """Constructor.
@@ -55,7 +55,7 @@ class IcsTask:
         self._start_task = start_task
         self._lock = Lock()
         self._mtime = 0.0
-        self._tasks: Dict[str, Dict[str, Any]] = {}
+        self._tasks: dict[str, dict[str, Any]] = {}
         self._update()
 
     def _update(self) -> None:
@@ -102,7 +102,7 @@ class IcsTask:
             dt = datetime.combine(dt, time.min)
         return dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
-    def to_vobject_etag(self, project: str, uid: str) -> Tuple[Component, str]:
+    def to_vobject_etag(self, project: str, uid: str) -> tuple[Component, str]:
         """Return iCal object and etag of one Taskwarrior entry.
 
         project -- the Taskwarrior project
@@ -112,7 +112,7 @@ class IcsTask:
 
     def to_vobjects(
         self, filename: str, uids: Iterable[str] = []
-    ) -> List[Tuple[str, Component, str]]:
+    ) -> list[tuple[str, Component, str]]:
         """Return iCal objects and etags of all Taskwarrior entries in uids.
 
         filename -- the Taskwarrior project
@@ -186,7 +186,7 @@ class IcsTask:
         rset.rrule(rrule.rrule(freq=freq, interval=int(recur[: -len(postfix)])))
         return rset
 
-    def _gen_vtodo(self, task: Dict[str, Any], vtodo: Component) -> None:
+    def _gen_vtodo(self, task: dict[str, Any], vtodo: Component) -> None:
         vtodo.add("uid").value = self._gen_uid(task["uuid"])
         vtodo.add("dtstamp").value = self._ics_datetime(task["entry"])
 
@@ -273,7 +273,7 @@ class IcsTask:
         project -- the project to add (see get_filesnames() as well)
         uuid -- the UID of the task in Taskwarrior
         """
-        task: Dict[str, Any] = {}
+        task: dict[str, Any] = {}
 
         if project and project != "all_projects" and project != "unaffiliated":
             task["project"] = project
@@ -365,7 +365,7 @@ class IcsTask:
         self._update()
         return self._gen_uid(uuid)
 
-    def get_filesnames(self) -> List[str]:
+    def get_filesnames(self) -> list[str]:
         """Return a list of all Taskwarrior projects as virtual files in the data directory."""
         self._update()
         projects = set(
@@ -375,7 +375,7 @@ class IcsTask:
         )
         return [join(self._data_location, p.split()[0]) for p in projects]
 
-    def get_uids(self, project: str = "") -> List[str]:
+    def get_uids(self, project: str = "") -> list[str]:
         """Return a list of UIDs.
 
         project -- the Project to filter for
@@ -394,7 +394,7 @@ class IcsTask:
 
         return [self._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
 
-    def get_meta(self) -> Dict[str, str]:
+    def get_meta(self) -> dict[str, str]:
         """Meta tags of the vObject collection."""
         return {"tag": "VCALENDAR", "C:supported-calendar-component-set": "VTODO"}
 
