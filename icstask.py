@@ -38,7 +38,7 @@ class IcsTask:
         self,
         data_location: str = "",
         localtz: Optional[ZoneInfo] = None,
-        task_projects: list[str] = [],
+        task_projects: list[str] = None,
         start_task: bool = True,
     ) -> None:
         """Constructor.
@@ -51,7 +51,7 @@ class IcsTask:
         else:
             self._data_location = data_location
         self._localtz = localtz if localtz else ZoneInfo("localtime")
-        self._task_projects = task_projects
+        self._task_projects = task_projects if task_projects else []
         self._start_task = start_task
         self._lock = Lock()
         self._mtime = 0.0
@@ -78,7 +78,7 @@ class IcsTask:
                         "task",
                         "rc.verbose=nothing",
                         "rc.hooks=off",
-                        "rc.data.location={self._data_location}".format(**locals()),
+                        f"rc.data.location={self._data_location}",
                         "export",
                     ],
                     text=True,
@@ -90,17 +90,19 @@ class IcsTask:
                         self._tasks[project] = {}
                     self._tasks[project][task["uuid"]] = task
 
-    def _gen_uid(self, uuid: str) -> str:
-        return "{}@{}".format(uuid, getfqdn())
+    @staticmethod
+    def _gen_uid(uuid: str) -> str:
+        return f"{uuid}@{getfqdn()}"
 
     def _ics_datetime(self, string: str) -> datetime:
-        dt = datetime.strptime(string, "%Y%m%dT%H%M%SZ")
-        return dt.replace(tzinfo=timezone.utc).astimezone(self._localtz)
+        dtime = datetime.strptime(string, "%Y%m%dT%H%M%SZ")
+        return dtime.replace(tzinfo=timezone.utc).astimezone(self._localtz)
 
-    def _tw_timestamp(self, dt: datetime) -> str:
-        if not isinstance(dt, datetime):
-            dt = datetime.combine(dt, time.min)
-        return dt.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    @staticmethod
+    def _tw_timestamp(dtime: datetime) -> str:
+        if not isinstance(dtime, datetime):
+            dtime = datetime.combine(dtime, time.min)
+        return dtime.astimezone(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 
     def to_vobject_etag(self, project: str, uid: str) -> tuple[Component, str]:
         """Return iCal object and etag of one Taskwarrior entry.
@@ -111,7 +113,7 @@ class IcsTask:
         return self.to_vobjects(project, [uid])[0][1:3]
 
     def to_vobjects(
-        self, filename: str, uids: Iterable[str] = []
+        self, filename: str, uids: Iterable[str] = None
     ) -> list[tuple[str, Component, str]]:
         """Return iCal objects and etags of all Taskwarrior entries in uids.
 
@@ -126,9 +128,7 @@ class IcsTask:
         project = basename(filename)
         if project == "all_projects":
             tasks = {
-                uuid: self._tasks[pro][uuid]
-                for pro in self._tasks
-                for uuid in self._tasks[pro]
+                uuid: tasks[uuid] for tasks in self._tasks.values() for uuid in tasks
             }
         else:
             if project not in self._tasks:
@@ -141,7 +141,7 @@ class IcsTask:
             vtodos = iCalendar()
             uuid = uid.split("@")[0]
             self._gen_vtodo(tasks[uuid], vtodos.add("vtodo"))
-            items.append((uid, vtodos, '"%s"' % tasks[uuid]["modified"]))
+            items.append((uid, vtodos, f'"{tasks[uuid]["modified"]}"'))
         return items
 
     def to_vobject(self, project: str = "", uid: str = "") -> Component:
@@ -162,16 +162,16 @@ class IcsTask:
         if uid:
             uid = uid.split("@")[0]
             if not project:
-                for p in self._tasks:
-                    if uid in self._tasks[p]:
-                        project = p
+                for pro, tsks in self._tasks.items():
+                    if uid in tsks:
+                        project = pro
                         break
             tasks.append(self._tasks[basename(project)][uid])
         elif project:
             tasks = list(self._tasks[basename(project)].values())
         else:
-            for project in self._tasks:
-                tasks.extend(self._tasks[project].values())
+            for tsks in self._tasks.values():
+                tasks.extend(tsks.values())
 
         for task in tasks:
             # skip recurring instances in favor of the single parent task
@@ -181,13 +181,14 @@ class IcsTask:
 
         return vtodos
 
-    def _create_rset(self, recur: str, freq: int, postfix: str) -> rrule.rruleset:
+    @staticmethod
+    def _create_rset(recur: str, freq: int, postfix: str) -> rrule.rruleset:
         rset = rrule.rruleset()
         rset.rrule(rrule.rrule(freq=freq, interval=int(recur[: -len(postfix)])))
         return rset
 
     def _gen_vtodo(self, task: dict[str, Any], vtodo: Component) -> None:
-        vtodo.add("uid").value = self._gen_uid(task["uuid"])
+        vtodo.add("uid").value = IcsTask._gen_uid(task["uuid"])
         vtodo.add("dtstamp").value = self._ics_datetime(task["entry"])
 
         if "modified" in task:
@@ -240,29 +241,41 @@ class IcsTask:
                 rset.rrule(rrule.rrule(freq=rrule.WEEKLY))
                 vtodo.rruleset = rset
             elif task["recur"].endswith("days"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.DAILY, "days")
+                vtodo.rruleset = IcsTask._create_rset(
+                    task["recur"], rrule.DAILY, "days"
+                )
             elif task["recur"].endswith("w"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.WEEKLY, "w")
+                vtodo.rruleset = IcsTask._create_rset(task["recur"], rrule.WEEKLY, "w")
             elif task["recur"].endswith("week"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.WEEKLY, "week")
+                vtodo.rruleset = IcsTask._create_rset(
+                    task["recur"], rrule.WEEKLY, "week"
+                )
             elif task["recur"].endswith("weeks"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.WEEKLY, "weeks")
+                vtodo.rruleset = IcsTask._create_rset(
+                    task["recur"], rrule.WEEKLY, "weeks"
+                )
             elif task["recur"].endswith("mo"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.MONTHLY, "mo")
+                vtodo.rruleset = IcsTask._create_rset(
+                    task["recur"], rrule.MONTHLY, "mo"
+                )
             elif task["recur"].endswith("month"):
-                vtodo.rruleset = self._create_rset(
+                vtodo.rruleset = IcsTask._create_rset(
                     task["recur"], rrule.MONTHLY, "month"
                 )
             elif task["recur"].endswith("months"):
-                vtodo.rruleset = self._create_rset(
+                vtodo.rruleset = IcsTask._create_rset(
                     task["recur"], rrule.MONTHLY, "months"
                 )
             elif task["recur"].endswith("y"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.YEARLY, "y")
+                vtodo.rruleset = IcsTask._create_rset(task["recur"], rrule.YEARLY, "y")
             elif task["recur"].endswith("year"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.YEARLY, "year")
+                vtodo.rruleset = IcsTask._create_rset(
+                    task["recur"], rrule.YEARLY, "year"
+                )
             elif task["recur"].endswith("years"):
-                vtodo.rruleset = self._create_rset(task["recur"], rrule.YEARLY, "years")
+                vtodo.rruleset = IcsTask._create_rset(
+                    task["recur"], rrule.YEARLY, "years"
+                )
             else:
                 raise ValueError(f'Unsupported recurrence string {task["recur"]}')
 
@@ -282,19 +295,19 @@ class IcsTask:
             task["uuid"] = uuid
 
         if hasattr(vtodo, "dtstamp"):
-            task["entry"] = self._tw_timestamp(vtodo.dtstamp.value)
+            task["entry"] = IcsTask._tw_timestamp(vtodo.dtstamp.value)
 
         if hasattr(vtodo, "last_modified"):
-            task["modified"] = self._tw_timestamp(vtodo.last_modified.value)
+            task["modified"] = IcsTask._tw_timestamp(vtodo.last_modified.value)
 
         if hasattr(vtodo, "dtstart"):
-            task["start"] = self._tw_timestamp(vtodo.dtstart.value)
+            task["start"] = IcsTask._tw_timestamp(vtodo.dtstart.value)
 
         if hasattr(vtodo, "due"):
-            task["due"] = self._tw_timestamp(vtodo.due.value)
+            task["due"] = IcsTask._tw_timestamp(vtodo.due.value)
 
         if hasattr(vtodo, "completed"):
-            task["end"] = self._tw_timestamp(vtodo.completed.value)
+            task["end"] = IcsTask._tw_timestamp(vtodo.completed.value)
 
         task["description"] = vtodo.summary.value
 
@@ -315,7 +328,7 @@ class IcsTask:
             for delta, comment in enumerate(vtodo.description.value.split("\n")):
                 # Hack because Taskwarrior import doesn't accept multiple
                 # annotations with the same timestamp
-                stamp = self._tw_timestamp(
+                stamp = IcsTask._tw_timestamp(
                     vtodo.dtstamp.value + timedelta(seconds=delta)
                 )
                 if (
@@ -332,17 +345,17 @@ class IcsTask:
             if vtodo.status.value == "IN-PROCESS":
                 task["status"] = "pending"
                 if self._start_task and "start" not in task:
-                    task["start"] = self._tw_timestamp(vtodo.dtstamp.value)
+                    task["start"] = IcsTask._tw_timestamp(vtodo.dtstamp.value)
             elif vtodo.status.value == "NEEDS-ACTION":
                 task["status"] = "pending"
             elif vtodo.status.value == "COMPLETED":
                 task["status"] = "completed"
                 if "end" not in task:
-                    task["end"] = self._tw_timestamp(vtodo.dtstamp.value)
+                    task["end"] = IcsTask._tw_timestamp(vtodo.dtstamp.value)
             elif vtodo.status.value == "CANCELLED":
                 task["status"] = "deleted"
                 if "end" not in task:
-                    task["end"] = self._tw_timestamp(vtodo.dtstamp.value)
+                    task["end"] = IcsTask._tw_timestamp(vtodo.dtstamp.value)
 
         json = dumps(task, separators=(",", ":"), ensure_ascii=False, sort_keys=True)
         with self._lock:
@@ -351,7 +364,7 @@ class IcsTask:
                     "task",
                     "rc.verbose=nothing",
                     "rc.recurrence.confirmation=no",
-                    "rc.data.location={self._data_location}".format(**locals()),
+                    f"rc.data.location={self._data_location}",
                     "import",
                     "-",
                 ],
@@ -363,7 +376,7 @@ class IcsTask:
             out,
         )[0]
         self._update()
-        return self._gen_uid(uuid)
+        return IcsTask._gen_uid(uuid)
 
     def get_filesnames(self) -> list[str]:
         """Return a list of all Taskwarrior projects as virtual files in the data directory."""
@@ -384,17 +397,18 @@ class IcsTask:
 
         if not project or project.endswith("all_projects"):
             return [
-                self._gen_uid(task["uuid"])
-                for project in self._tasks
-                for task in self._tasks[project].values()
+                IcsTask._gen_uid(task["uuid"])
+                for tasks in self._tasks.values()
+                for task in tasks.values()
             ]
 
         if basename(project) not in self._tasks:
             return []
 
-        return [self._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
+        return [IcsTask._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
 
-    def get_meta(self) -> dict[str, str]:
+    @staticmethod
+    def get_meta() -> dict[str, str]:
         """Meta tags of the vObject collection."""
         return {"tag": "VCALENDAR", "C:supported-calendar-component-set": "VTODO"}
 
@@ -425,7 +439,7 @@ class IcsTask:
                 [
                     "task",
                     "rc.verbose=nothing",
-                    "rc.data.location={self._data_location}".format(**locals()),
+                    f"rc.data.location={self._data_location}",
                     "rc.confirmation=no",
                     uuid,
                     "delete",
@@ -456,11 +470,11 @@ class IcsTask:
                 [
                     "task",
                     "rc.verbose=nothing",
-                    "rc.data.location={self._data_location}".format(**locals()),
+                    f"rc.data.location={self._data_location}",
                     "rc.confirmation=no",
                     uuid,
                     "modify",
-                    "project:{}".format(basename(to_project)),
+                    f"project:{basename(to_project)}",
                 ]
             )
 
