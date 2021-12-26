@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="icstask",
-    version="0.3.0",
+    version="0.4.0",
     description="Python library to convert between Taskwarrior and vObject",
     long_description=open("README.rst").read(),
     author="Jochen Sprickerhof",
