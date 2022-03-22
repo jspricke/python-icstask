@@ -26,7 +26,7 @@ from threading import Lock
 from typing import Any, Iterable, Optional
 from zoneinfo import ZoneInfo
 
-from dateutil import rrule
+from dateutil import rrule, tz
 from vobject import iCalendar
 from vobject.base import Component, readOne
 
@@ -50,7 +50,7 @@ class IcsTask:
             self._data_location = findall("data.location=(.*)", out)[0]
         else:
             self._data_location = data_location
-        self._localtz = localtz if localtz else ZoneInfo("localtime")
+        self._localtz = localtz if localtz else tz.gettz()
         self._task_projects = task_projects if task_projects else []
         self._start_task = start_task
         self._lock = Lock()
