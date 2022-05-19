@@ -16,6 +16,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """Python library to convert between Taskwarrior and iCalendar."""
 
+from collections.abc import Iterable
 from datetime import datetime, time, timedelta, timezone
 from json import dumps, loads
 from os.path import basename, exists, getmtime, join
@@ -23,10 +24,11 @@ from re import findall
 from socket import getfqdn
 from subprocess import check_call, check_output
 from threading import Lock
-from typing import Any, Iterable, Optional
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from dateutil import rrule, tz
+
 from vobject import iCalendar
 from vobject.base import Component, readOne
 
@@ -37,7 +39,7 @@ class IcsTask:
     def __init__(
         self,
         data_location: str = "",
-        localtz: Optional[ZoneInfo] = None,
+        localtz: None | ZoneInfo = None,
         task_projects: list[str] = None,
         start_task: bool = True,
     ) -> None:
@@ -427,7 +429,7 @@ class IcsTask:
             project = basename(project)
         return self.to_task(vtodo.vtodo, project)
 
-    def remove(self, uuid: str, project: str = "") -> None:
+    def remove(self, uuid: str, _project: str = "") -> None:
         """Remove a task from Taskwarrior.
 
         uuid -- the UID of the task
@@ -459,7 +461,7 @@ class IcsTask:
             project = basename(project)
         return self.to_task(vtodo.vtodo, project, uuid)
 
-    def move_vobject(self, uuid: str, from_project: str, to_project: str) -> None:
+    def move_vobject(self, uuid: str, _from_project: str, to_project: str) -> None:
         """Update the project of the task with the UID uuid."""
         if to_project not in self.get_filesnames():
             return
