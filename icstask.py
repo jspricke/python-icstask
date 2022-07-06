@@ -504,6 +504,10 @@ def task2ics() -> None:
     )
     args = parser.parse_args()
 
+    if args.indir and args.indir != "-" and not exists(args.indir):
+        args.outfile = open(args.indir, "w", encoding="utf-8")
+        args.indir = None
+
     task = IcsTask(args.indir)
     args.outfile.write(task.to_vobject().serialize())
 
