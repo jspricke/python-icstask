@@ -498,7 +498,7 @@ def task2ics() -> None:
     parser.add_argument(
         "outfile",
         nargs="?",
-        type=FileType("w"),
+        type=FileType("w", encoding="utf-8"),
         default=stdout,
         help="Output iCalendar file (default: stdout)",
     )
@@ -519,7 +519,7 @@ def ics2task() -> None:
     parser.add_argument(
         "infile",
         nargs="?",
-        type=FileType("r"),
+        type=FileType("r", encoding="utf-8"),
         default=stdin,
         help="Input iCalendar file (default: stdin)",
     )
