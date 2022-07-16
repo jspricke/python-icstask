@@ -42,6 +42,7 @@ class IcsTask:
         localtz: None | ZoneInfo = None,
         task_projects: list[str] = None,
         start_task: bool = True,
+        fqdn: str = None,
     ) -> None:
         """Constructor.
 
@@ -57,6 +58,7 @@ class IcsTask:
         self._start_task = start_task
         self._lock = Lock()
         self._mtime = 0.0
+        self._fqdn = fqdn if fqdn else getfqdn()
         self._tasks: dict[str, dict[str, Any]] = {}
         self._update()
 
@@ -92,9 +94,8 @@ class IcsTask:
                         self._tasks[project] = {}
                     self._tasks[project][task["uuid"]] = task
 
-    @staticmethod
-    def _gen_uid(uuid: str) -> str:
-        return f"{uuid}@{getfqdn()}"
+    def _gen_uid(self, uuid: str) -> str:
+        return f"{uuid}@{self._fqdn}"
 
     def _ics_datetime(self, string: str) -> datetime:
         dtime = datetime.strptime(string, "%Y%m%dT%H%M%SZ")
@@ -190,7 +191,7 @@ class IcsTask:
         return rset
 
     def _gen_vtodo(self, task: dict[str, Any], vtodo: Component) -> None:
-        vtodo.add("uid").value = IcsTask._gen_uid(task["uuid"])
+        vtodo.add("uid").value = self._gen_uid(task["uuid"])
         vtodo.add("dtstamp").value = self._ics_datetime(task["entry"])
 
         if "modified" in task:
@@ -378,7 +379,7 @@ class IcsTask:
             out,
         )[0]
         self._update()
-        return IcsTask._gen_uid(uuid)
+        return self._gen_uid(uuid)
 
     def get_filesnames(self) -> list[str]:
         """Return a list of all Taskwarrior projects as virtual files in the data directory."""
@@ -399,7 +400,7 @@ class IcsTask:
 
         if not project or project.endswith("all_projects"):
             return [
-                IcsTask._gen_uid(task["uuid"])
+                self._gen_uid(task["uuid"])
                 for tasks in self._tasks.values()
                 for task in tasks.values()
             ]
@@ -407,7 +408,7 @@ class IcsTask:
         if basename(project) not in self._tasks:
             return []
 
-        return [IcsTask._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
+        return [self._gen_uid(uuid) for uuid in self._tasks[basename(project)]]
 
     @staticmethod
     def get_meta() -> dict[str, str]:
