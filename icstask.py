@@ -53,12 +53,12 @@ class IcsTask:
             self._data_location = findall("data.location=(.*)", out)[0]
         else:
             self._data_location = data_location
-        self._localtz = localtz if localtz else tz.gettz()
-        self._task_projects = task_projects if task_projects else []
+        self._localtz = localtz or tz.gettz()
+        self._task_projects = task_projects or []
         self._start_task = start_task
         self._lock = Lock()
         self._mtime = 0.0
-        self._fqdn = fqdn if fqdn else getfqdn()
+        self._fqdn = fqdn or getfqdn()
         self._tasks: dict[str, dict[str, Any]] = {}
         self._update()
 
