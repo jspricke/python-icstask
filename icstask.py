@@ -67,7 +67,7 @@ class IcsTask:
         update = False
 
         with self._lock:
-            for fname in ["pending.data", "completed.data"]:
+            for fname in ("pending.data", "completed.data"):
                 data_file = join(self._data_location, fname)
                 if exists(data_file):
                     mtime = getmtime(data_file)
@@ -223,7 +223,7 @@ class IcsTask:
             elif task["priority"] == "L":
                 vtodo.add("priority").value = "9"
 
-        if task["status"] == "pending" or task["status"] == "waiting":
+        if task["status"] in ("pending", "waiting"):
             if "start" in task:
                 vtodo.add("status").value = "IN-PROCESS"
             else:
