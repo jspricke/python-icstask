@@ -239,9 +239,21 @@ class IcsTask:
             )
 
         if "recur" in task:
-            if task["recur"] == "weekly":
+            if task["recur"] == "daily":
+                rset = rrule.rruleset()
+                rset.rrule(rrule.rrule(freq=rrule.DAILY))
+                vtodo.rruleset = rset
+            elif task["recur"] == "weekly":
                 rset = rrule.rruleset()
                 rset.rrule(rrule.rrule(freq=rrule.WEEKLY))
+                vtodo.rruleset = rset
+            elif task["recur"] == "monthly":
+                rset = rrule.rruleset()
+                rset.rrule(rrule.rrule(freq=rrule.MONTHLY))
+                vtodo.rruleset = rset
+            elif task["recur"] == "yearly":
+                rset = rrule.rruleset()
+                rset.rrule(rrule.rrule(freq=rrule.YEARLY))
                 vtodo.rruleset = rset
             elif task["recur"].endswith("days"):
                 vtodo.rruleset = IcsTask._create_rset(
