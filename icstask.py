@@ -40,9 +40,9 @@ class IcsTask:
         self,
         data_location: str = "",
         localtz: None | ZoneInfo = None,
-        task_projects: list[str] = None,
+        task_projects: list[str] | None = None,
         start_task: bool = True,
-        fqdn: str = None,
+        fqdn: str | None = None,
     ) -> None:
         """Constructor.
 
@@ -116,7 +116,7 @@ class IcsTask:
         return self.to_vobjects(project, [uid])[0][1:3]
 
     def to_vobjects(
-        self, filename: str, uids: Iterable[str] = None
+        self, filename: str, uids: Iterable[str] | None = None
     ) -> list[tuple[str, Component, str]]:
         """Return iCal objects and etags of all Taskwarrior entries in uids.
 
