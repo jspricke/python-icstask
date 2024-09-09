@@ -1,6 +1,6 @@
 # Python library to convert between Taskwarrior and iCalendar
 #
-# Copyright (C) 2015-2021  Jochen Sprickerhof
+# Copyright (C) 2015-2024  Jochen Sprickerhof
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
