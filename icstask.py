@@ -396,10 +396,10 @@ class IcsTask:
     def get_filesnames(self) -> list[str]:
         """Return a list of all Taskwarrior projects as virtual files in the data directory."""
         self._update()
-        projects = set(
+        projects = sorted(set(
             list(self._tasks.keys())
             + self._task_projects
-            + ["all_projects", "unaffiliated"]
+            + ["all_projects", "unaffiliated"])
         )
         return [join(self._data_location, p.split()[0]) for p in projects]
 
