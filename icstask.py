@@ -28,7 +28,6 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from dateutil import rrule, tz
-
 from vobject import iCalendar
 from vobject.base import Component, readOne
 
@@ -396,10 +395,12 @@ class IcsTask:
     def get_filesnames(self) -> list[str]:
         """Return a list of all Taskwarrior projects as virtual files in the data directory."""
         self._update()
-        projects = sorted(set(
-            list(self._tasks.keys())
-            + self._task_projects
-            + ["all_projects", "unaffiliated"])
+        projects = sorted(
+            set(
+                list(self._tasks.keys())
+                + self._task_projects
+                + ["all_projects", "unaffiliated"]
+            )
         )
         return [join(self._data_location, p.split()[0]) for p in projects]
 
@@ -425,7 +426,10 @@ class IcsTask:
     @staticmethod
     def get_meta() -> dict[str, str]:
         """Meta tags of the vObject collection."""
-        return {"tag": "VCALENDAR", "C:supported-calendar-component-set": "VTODO"}
+        return {
+            "tag": "VCALENDAR",
+            "C:supported-calendar-component-set": "VTODO",
+        }
 
     def last_modified(self) -> float:
         """Last time this Taskwarrior files where parsed."""
