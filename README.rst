@@ -6,10 +6,10 @@ Python library to convert between Taskwarrior and vObject
 Installation
 ------------
 
-You need to have the Taskwarrior command line tool installed.
+You need to have the `taskchampion-py <https://github.com/GothenburgBitFactory/taskchampion-py>`_ library installed.
 For Debian/Ubuntu use::
 
-  $ sudo apt-get install taskwarrior
+  $ sudo apt-get install python3-taskchampion-py
 
 Using pip
 ~~~~~~~~~
